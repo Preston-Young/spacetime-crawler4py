@@ -1,5 +1,4 @@
 import re
-from string import punctuation
 import requests
 from collections import defaultdict
 
@@ -55,11 +54,9 @@ def tokenize(url, soup):
     count = 0
     
     #get tokens
-    punctuation = punctuation.replace("'", "")
-    #for token in re.split(r'[^\w\d\s\']+', soup.get_text().lower()):
-    for token in soup.get_text().lower().translate(str.maketrans("", "", punctuation)).split():
-        #check for stopwords
+    for token in re.split("[^a-zA-Z']+", soup.get_text().lower()):
         token = token.strip()
+        #check for empty token, ascii, and stopwords
         if token != '' and len(token) == len(token.encode()) and token not in STOPWORDS_LIST:
             tokens.append(token)
             count += 1
