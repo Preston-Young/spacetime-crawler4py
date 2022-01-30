@@ -5,7 +5,7 @@ from collections import defaultdict
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-from stopwords import STOPWORDS_LIST
+from stopwords import STOPWORDS_SET
 
 from urllib.robotparser import RobotFileParser
 
@@ -57,7 +57,7 @@ def tokenize(url, soup):
     for token in re.split("[^a-zA-Z']+", soup.get_text().lower()):
         token = token.strip()
         #check for empty token, ascii, and stopwords
-        if token != '' and len(token) == len(token.encode()) and token not in STOPWORDS_LIST:
+        if token != '' and len(token) == len(token.encode()) and token not in STOPWORDS_SET:
             tokens.append(token)
             count += 1
 

@@ -1,4 +1,4 @@
-STOPWORDS_LIST = [
+STOPWORDS_SET = {
     "a",
     "about",
     "above",
@@ -173,4 +173,4 @@ STOPWORDS_LIST = [
     "yours",
     "yourself",
     "yourselves"
-]
+}
