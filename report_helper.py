@@ -1,13 +1,9 @@
 import re
-import requests
 from collections import defaultdict
 
 from urllib.parse import urlparse
-from bs4 import BeautifulSoup
 
 from stopwords import STOPWORDS_SET
-
-from urllib.robotparser import RobotFileParser
 
 """
 Report Requirements:
@@ -41,14 +37,14 @@ def report_add_url(url):
     
     parsed = urlparse(url)
     if '.ics.uci.edu' in parsed.hostname and 'www' not in parsed.hostname:
-        ics_subdomains[f'{parsed.scheme}://{parsed.hostname}'] += 1
+        ics_subdomains[f'http://{parsed.hostname}'] += 1
 
 
 #get tokens from url and update word_frequencies/longest_page
 def tokenize(url, soup):
     global longest_page
     global word_frequencies
-    global STOPWORDS_LIST
+    global STOPWORDS_SET
 
     tokens = []
     count = 0
@@ -57,7 +53,7 @@ def tokenize(url, soup):
     for token in re.split("[^a-zA-Z']+", soup.get_text().lower()):
         token = token.strip()
         #check for empty token, ascii, and stopwords
-        if token != '' and len(token) == len(token.encode()) and token not in STOPWORDS_SET:
+        if token != '' and len(token) == len(token.encode()) and token not in STOPWORDS_SET and len(token) > 2:
             tokens.append(token)
             count += 1
 
@@ -70,11 +66,11 @@ def tokenize(url, soup):
         longest_page = {"name": url, "length": count}
 
 def gen_report():
-    with open("output.txt", "w") as output:
+    with open("report.txt", "w") as output:
         output.write(f"1. Number of unique pages: {len(unique_pages)}\n")
 
         output.write(f"\n2. Longest page:\n")
-        output.write(f"{longest_page['name']} -> {longest_page['length']}")
+        output.write(f"{longest_page['name']} -> {longest_page['length']}\n")
         
         counter = 0
         output.write(f"\n3. 50 most common words:\n")

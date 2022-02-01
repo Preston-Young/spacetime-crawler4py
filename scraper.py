@@ -1,10 +1,11 @@
 import re
-from urllib.parse import urlparse, urldefrag, urljoin
+from urllib.parse import urlparse, urldefrag
 
 from bs4 import BeautifulSoup
 
 from report_helper import report_add_url, tokenize, gen_report
-from robot_helper import robot_check
+
+FILE_SIZE_LIMIT = 255000
 
 url_set = set()
 
@@ -19,7 +20,6 @@ valid_hostnames = [
 def scraper(url, resp):
     url_set.add(url)
     links = extract_next_links(url, resp)
-    # print(links)
     gen_report()
     return links
 
@@ -41,6 +41,16 @@ def extract_next_links(url, resp):
 
     if resp.status != 200:
         return links
+
+    # Avoid large websites
+    size = len(resp.raw_response.content)
+
+    # with open("file_sizes.csv", "a") as file:
+    #     file.write(f'{size}\n')
+    
+    if size > FILE_SIZE_LIMIT:
+        print(f'Skipping {url} of size {size}')
+        return links
     
     soup = BeautifulSoup(resp.raw_response.content, 'lxml')
     num_atag = len(soup.find_all('a'))
@@ -51,12 +61,13 @@ def extract_next_links(url, resp):
             continue
 
         link = urldefrag(link.get('href'))[0] # Extract fragments
+        link = link.split('?')[0] # Extract query
 
         if is_valid(link, num_atag, num_text) and link not in url_set:
             links.append(link)
             url_set.add(link)
 
-            #tokenize the text for each link
+            # tokenize the text for each link
             tokenize(url, soup)
 
             # Add to report info
@@ -65,35 +76,46 @@ def extract_next_links(url, resp):
     return links
 
 
-#We need to check whether or not the url is a trap of some sort
-def is_trap(url, parsed, num_atag, num_text):
+# We need to check whether or not the url is a trap of some sort
+def is_trap(url, num_atag, num_text):
 
     # check arbit length of url h
-    if len(url) > 100:  
-        return False
+    if len(url) > 175:
+        return True
 
-    # TODO
     # Calendar is not accurately being filtered out
-    if re.match(r"^.*calendar.*$", parsed.path.lower()):
+    if "calendar" in url.lower():
         return True
         
     # archives are also a trap
-    if re.match(r"^archive.*", parsed.path.lower()):
+    if "archive" in url.lower():
         return True
 
-    # check repeated directories
-    #if re.match(r"^.*?(/.+?/).*?\1.*$|^.*?/(.+?/)\2.*$", parsed.path.lower()):
-        #return True
+    # check for replytocom links
+    if "replyto" in url.lower():
+        return True
 
-    return num_atag / num_text > 0.3 
+    # check for date format of yyyy-mm-dd
+    if re.match(r"^.*\d{4}-\d{1,2}-\d{1,2}.*$", url):
+        return True
+
+    # check for date format of mm-dd-yyyy
+    if re.match(r"^.*\d{1,2}-\d{1,2}-\d{4}.*$", url):
+        return True
+
+    # check for repeated directories
+    if re.match(r"^.*?(/.+?/).*?\1.*$|^.*?/(.+?/)\2.*$", url.lower()):
+        return True
+
+    return num_atag / num_text > 0.33 
 
 # Decide whether to crawl this url or not. 
 # If you decide to crawl it, return True; otherwise return False.
 # There are already some conditions that return False.
-def is_valid(url, num_atag, num_text):
+def is_valid(url, num_atag = 0, num_text = 1):
     try:
         parsed = urlparse(url)
-        
+
         # Scheme must be HTTP/HTTPS
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -104,8 +126,8 @@ def is_valid(url, num_atag, num_text):
         if not hostname or not any(h in hostname for h in valid_hostnames):
             return False
         
-        # Is a trap link
-        if is_trap(url, parsed, num_atag, num_text) and robot_check(parsed):
+        # Is a trap link or robot says we can't parse
+        if is_trap(url, num_atag, num_text):
             return False
 
         # if file extension is in the path
